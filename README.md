@@ -17,36 +17,37 @@ Built spec-first with [GitHub Spec Kit](https://github.com/github/spec-kit).
 
 **The split:** `docs/` is ours to edit freely; `specs/` is managed by Spec Kit's commands. Spec numbers (`001`, `002`…) follow build order, not the M# label — see `docs/modules.md` for the map.
 
-## First-time setup
+## The Spec Kit development process
+
+We build **spec-first**: every module becomes a written, reviewable specification before any code is planned or generated. Spec Kit drives this through a sequence of slash commands you run inside your agent. Each command reads the project `constitution.md` and the artifacts before it, then writes the next artifact into `specs/NNN-slug/`.
+
+| Command | Produces | Purpose |
+|---|---|---|
+| `/speckit.specify` | `spec.md` (+ a new `NNN-slug` branch) | Turn a module brief into a structured spec — *what* and *why*, no tech yet |
+| `/speckit.clarify` | updated `spec.md` | Surface and resolve open questions / ambiguities |
+| `/speckit.plan` | `plan.md` | Land the *how* — tech choices (Cloudflare/Next/BetterAuth), architecture |
+| `/speckit.tasks` | `tasks.md` | Break the plan into dependency-ordered tasks |
+| `/speckit.analyze` | report | Cross-artifact consistency check across spec/plan/tasks |
+| `/speckit.implement` | code | Execute the tasks (only after the spec + plan are approved) |
+
+The split to keep in mind: **`docs/` is ours to edit freely; `specs/` is managed by Spec Kit's commands.** Modules are specified in **phase order** (see `docs/modules.md`), one at a time — not all at once.
+
+## Iterate on a branch, merge via PR
+
+Requirements are never edited directly on `main`. Each module is specified on its own feature branch so the spec can be reviewed and approved before it lands.
+
+1. **Refine the brief.** Update the module brief in `docs/modules/MNN-*.md` so it captures the agreed scope (this can itself go through a quick PR).
+2. **Start the spec on a branch.** Run `/speckit.specify` and feed it the module brief. Spec Kit creates a `NNN-slug` feature branch and writes `specs/NNN-slug/spec.md` onto it. You are now off `main`.
+3. **Iterate on the requirements.** Stay on that branch and run `/speckit.clarify`, `/speckit.plan`, `/speckit.tasks`, and `/speckit.analyze` as needed. Re-run any step and hand-edit the artifacts until the spec and plan reflect what the team actually wants — all of this churn stays on the branch, never on `main`.
+4. **Open a PR for approval.** Push the `NNN-slug` branch and open a pull request into `main`. Reviewers read `spec.md` (and `plan.md`) and request changes; keep iterating on the branch and pushing until they approve.
+5. **Merge.** Once approved, merge into `main`. Update the row in `docs/modules.md` (status: Brief → Spec → Plan → Tasks → Building → Done).
 
 ```bash
-git init
-# 1) Scaffold Spec Kit (pick the agent you collaborate with: claude, copilot, cursor, …)
-uvx --from git+https://github.com/github/spec-kit.git specify init --here --integration claude --script sh
-# 2) Install our project constitution over the default template
-cp constitution.md .specify/memory/constitution.md
-# 3) Commit and push
-git add -A && git commit -m "chore: scaffold Kalvi40 SMS (docs + constitution + Spec Kit)"
-git branch -M main && git remote add origin <your-github-url> && git push -u origin main
+# After /speckit.specify has put you on the NNN-slug branch:
+git push -u origin NNN-slug          # publish the branch
+gh pr create --base main --fill      # open the PR for review
+# …address feedback on the branch, push again, then merge once approved
 ```
-
-> Note: `specify init --here` may warn that it's adding to an existing directory — expected. Avoid `--force` later; it overwrites `.specify/memory/constitution.md`.
-
-## Working a module (the per-module loop)
-
-Modules are specified in **phase order** (see `docs/modules.md`), not all at once.
-
-1. Refine the module brief in `docs/modules/MNN-*.md` via a PR; merge when the team agrees on scope.
-2. In your agent, run the Spec Kit flow — each `/speckit.specify` creates a `NNN-slug` branch + `specs/NNN-slug/spec.md`:
-   ```
-   /speckit.specify   (feed it the module brief)
-   /speckit.clarify    → resolve open questions
-   /speckit.plan       → tech choices land here (Cloudflare/Next/BetterAuth)
-   /speckit.tasks      → dependency-ordered tasks
-   /speckit.analyze    → cross-artifact consistency check
-   ```
-3. Open a PR from the `NNN-slug` branch. Review the `spec.md` (and later `plan.md`) before merge.
-4. Update the row in `docs/modules.md` (status: Brief → Spec → Plan → Tasks → Building → Done).
 
 ## Constitution
 
