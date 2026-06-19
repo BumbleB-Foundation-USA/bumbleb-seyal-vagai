@@ -1,6 +1,6 @@
-# Kalvi40 School Management System (kalvi40-sms)
+# BumbleB - Kalvi40 Seyal Vagai
 
-System of record + field-data-capture platform for BumbleB Trust / Kalvi40.
+Kalvi40 School Management System. System of record + field-data-capture platform for BumbleB Trust / Kalvi40.
 Built spec-first with [GitHub Spec Kit](https://github.com/github/spec-kit).
 
 ## Repo map
