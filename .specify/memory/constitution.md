@@ -1,50 +1,38 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# Kalvi40 SMS Constitution
+
+*This is the supreme document for the project. Every spec, plan, and task must conform to it. Copy this file to `.specify/memory/constitution.md` after running `specify init`.*
+
+**Version:** 0.1.0 (draft) · **Ratified:** TBD · **Last amended:** initial
+
+---
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Frictionless First (non-negotiable)
+Every data-capture interaction is optimized for the fewest taps and zero typing where possible. Defaults, last-used values, and pickers replace free entry. If a field cannot justify itself against a report someone actually reads, it does not ship. The capture surface must be usable one-handed on a low-end Android device by a non-technical user.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Offline-Tolerant by Default
+Field users operate in rural schools with unreliable connectivity. Capture must work fully offline, queue locally, and sync when a connection returns. No capture flow may block on the network. Conflict handling is last-write-wins unless a spec states otherwise.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Integrity by Design (system of record)
+This system is the single source of truth once live. Every entity has a stable, system-minted ID; every cross-entity link is an enforced foreign key, never a name string. Referential integrity, not convention, prevents orphans. No bidirectional duplication of the same fact.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Data Minimization & Privacy
+Collect the minimum needed. Student-level data is counts and usage only — no student PII. Donor- and volunteer-facing views are aggregate and PII-safe. Personal contact data (staff, TC, HM) is access-controlled by role.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Bilingual & Accessible (Tamil / English)
+Tamil and English are first-class throughout. School and type names carry both scripts. UI targets large touch areas, high contrast, and low-literacy-friendly affordances.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### VI. Role-Scoped Access
+Access is determined by role and assignment. Users see and edit only what their role and their school/project assignment permit (e.g., a TC sees their schools; an HM sees their school's reports). Auth is OTP-first with long-lived sessions to minimize friction (see ADR-0003).
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### VII. Spec-Driven & Reviewable
+No implementation without a merged spec. Specs are developed on branches and reviewed via PR. The data model in `docs/data-model.md` is the shared contract all module specs reference.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
-
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+## Performance & Quality Constraints
+- Capture screen interactive in < 1s on a mid-range device; actions feel instant (optimistic UI).
+- Small edge-served bundles (Cloudflare Workers); avoid heavy client dependencies on the capture path.
+- Accessibility and bilingual coverage are acceptance criteria, not afterthoughts.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
-
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
-
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+This constitution supersedes other practices. Amendments are proposed via PR, with rationale and a version bump (semver: MAJOR for principle removal/redefinition, MINOR for new principle, PATCH for clarifications). Every spec's `/speckit.analyze` step must verify conformance.
