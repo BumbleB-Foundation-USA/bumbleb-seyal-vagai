@@ -10,3 +10,4 @@ Status ∈ {Proposed, Accepted, Accepted (needs deeper design), Deferred, Supers
 | 0003 | Authentication approach (email + OTP) | Accepted (needs deeper design) |
 | 0004 | Headmaster report access | Accepted |
 | 0005 | Deferred items (lead hierarchy, donor portal) | Deferred |
+| 0006 | [OTP delivery provider (India)](0006-otp-provider.md) | Proposed |
