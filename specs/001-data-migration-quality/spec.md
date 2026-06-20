@@ -1,4 +1,4 @@
-# Feature Specification: Data Migration & Quality (Phase 0)
+# Feature Specification: Phase 0 — Data Foundation (Migration & Reference Data)
 
 **Feature Branch**: `001-data-migration-quality`
 
@@ -6,20 +6,30 @@
 
 **Status**: Draft
 
-**Module**: M10 — Data Migration & Quality · **Phase**: 0 (then ongoing)
+**Modules**: M10 — Data Migration & Quality · M02 — Organization & Reference Data · **Phase**: 0 (M02 spans 0–1)
 
-**Input**: User description: "Let's create a branch and iterate on the specs required for phase 0. Review all the markdowns, create the specs for these phases and surface all open questions that need to be addressed."
+**Input**: User descriptions:
+- "Let's create a branch and iterate on the specs required for phase 0. Review all the markdowns, create the specs for these phases and surface all open questions that need to be addressed."
+- "Let's fold module 02 (organization and reference data) into the current feature, and spec it out. Review the high level scope set forth for this module and add the user stories."
 
 ## Overview
 
-Phase 0 turns the Kalvi40 master spreadsheet (`Copy_of_Kalvi40_Master_Database`, 9 tabs, ~1,100 real records) into a clean, normalized **system of record**, per ADR-0001 (full cutover, no two-way sync). This is a prerequisite for every other module: identity, master-data CRUD, workforce, and field capture all build on the data this migration produces.
+Phase 0 stands up the **data foundation** for the Kalvi40 system of record. It folds two tightly-coupled modules into one feature because they share the same tables and ship together:
 
-The work has two halves:
+- **M10 — Data Migration & Quality**: the one-time ETL of the master spreadsheet (`Copy_of_Kalvi40_Master_Database`, 9 tabs, ~1,100 real records) into a clean, normalized **system of record** (ADR-0001, full cutover), plus the ongoing validation rules that keep it clean.
+- **M02 — Organization & Reference Data**: the admin/operations surface that **manages the dimension tables everything else references** — districts, school types, departments, roles, donors, and the `Key`-tab enumerations — replacing day-to-day spreadsheet editing for that data.
 
-1. **A one-time load (ETL)** — move every tab into the canonical schema in `docs/data-model.md`, minting stable IDs and replacing name-string links with enforced foreign keys.
-2. **An ongoing quality regime** — an exception report the BumbleB team resolves, plus validation rules that prevent the same defects (orphans, bad phones, missing required fields) from recurring once the system is live.
+They belong together: M10 *loads* the dimension tables; M02 *maintains* them. Once migration lands the reference data, M02 is how the team curates it going forward (constitution, Principle III — integrity by design; Principle V — bilingual; Principle VI — role-scoped access).
 
-This spec stays at the level of **what** clean data must look like and **why**, referencing `docs/data-model.md` as the shared schema contract and `docs/migration-plan.md` for the agreed transformation steps. Concrete tooling and load mechanics are decided in `/speckit-plan`.
+The work has three strands:
+
+1. **A one-time load (ETL, M10)** — move every tab into the canonical schema in `docs/data-model.md`, minting stable IDs and replacing name-string links with enforced foreign keys.
+2. **Reference-data management (M02)** — CRUD for the dimensions and controlled lookups, with first-class Tamil/English names and referential safety.
+3. **An ongoing quality regime (M10)** — an exception report the BumbleB team resolves, plus validation rules that prevent the same defects (orphans, bad phones, missing required fields) from recurring once the system is live.
+
+This spec stays at the level of **what** the data foundation must do and **why**, referencing `docs/data-model.md` as the shared schema contract and `docs/migration-plan.md` for the agreed transformation steps. Concrete tooling, UI, and load mechanics are decided in `/speckit-plan`.
+
+**Module scope boundary**: M02 manages the *dimension / reference* entities only. The operational entities that reference them — schools (M03), projects (M04), workforce (M05/M06) — are out of scope here and get their own specs.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -107,6 +117,71 @@ Once the system is live, the same defects must not creep back in. The system enf
 
 ---
 
+### User Story 6 - Manage core reference dimensions (Priority: P2)
+
+An admin maintains the dimension tables the rest of the system references — districts, school types, departments, and roles — through create / edit / deactivate actions, without touching a spreadsheet or asking engineering. School-facing names are entered in both Tamil and English, and each dimension carries its defining attributes (district `code`; school-type `mgmt_category` and `grade_level`; role `scope`).
+
+**Why this priority**: This is the M02 MVP and the capability that lets the team retire the spreadsheet as the *editing* surface for reference data (migration only retires it as the system of record). Every other module depends on these lists being correct and current. It follows the load (US1) because there is nothing to manage until the data is there.
+
+**Independent Test**: After the dimensions are loaded, create a new district with bilingual names and a code, edit a school type's management category, and deactivate an unused department — confirm each change persists and is reflected wherever that dimension is offered as a choice.
+
+**Acceptance Scenarios**:
+
+1. **Given** an admin on the reference-data surface, **When** they create a district with an English name, a Tamil name, and a code, **Then** the district is saved with a system-minted `district_id` and becomes available wherever districts are referenced.
+2. **Given** an existing school type, **When** an admin sets its `mgmt_category`, **Then** a value within the allowed set ({Govt, GovtAdiDravidar, GovtTribal, GovtAided, Panchayat, Private, CSI}) is saved and an out-of-set value is rejected.
+3. **Given** a role, **When** an admin edits its name or `scope`, **Then** the change is saved and applied wherever the role is referenced.
+4. **Given** a department not referenced by any record, **When** an admin deactivates it, **Then** it no longer appears in pickers for new records but remains intact for historical records.
+
+---
+
+### User Story 7 - Manage donors and complete their contact details (Priority: P2)
+
+An admin maintains donor records — name, `donor_type` (CSR / Non-CSR), and the point-of-contact details (POC name, email, phone, postal address) that migration mostly found blank. This is where the sparse donor contacts flagged during migration get backfilled, and where new donors are added as the trust signs them.
+
+**Why this priority**: Donors are a dimension referenced by projects and schools, and donor-contact completeness is a known migration gap. Giving admins a place to fill it closes that gap without an engineering pass. Separated from US6 because donors carry contact and classification nuance the other dimensions don't.
+
+**Independent Test**: Open a migrated donor whose POC/email/phone are blank, fill them in, and confirm they persist as valid (E.164 phone); create a brand-new donor with a `donor_type`; confirm both appear wherever donors are selectable.
+
+**Acceptance Scenarios**:
+
+1. **Given** a migrated donor with blank contact fields, **When** an admin enters a POC name, email, and phone, **Then** the values are saved, the phone is stored in E.164 form, and an invalid phone or email is rejected.
+2. **Given** a new sponsor, **When** an admin creates a donor with a name and a `donor_type` of CSR or Non-CSR, **Then** the donor is saved with a system-minted `donor_id`.
+3. **Given** a donor referenced by one or more projects, **When** an admin attempts to delete it, **Then** deletion is prevented and deactivation is offered instead (see US9).
+
+---
+
+### User Story 8 - Govern controlled enumerations / managed lookups (Priority: P3)
+
+An admin manages the `Key`-tab-derived lookups (e.g. donor type, project delivery model {LITE, TC}, management categories) as governed lists. Some lists are **system-fixed** because their values carry behaviour the application relies on; others are **admin-editable**. Adding or renaming a value in an editable list flows through to every dependent picker and validation without a code change.
+
+**Why this priority**: Controlled vocabularies keep data consistent, but the system can ship with sensible defaults for which lists are fixed vs editable and refine later. It is governance polish on top of the core CRUD.
+
+**Independent Test**: Add a new value to an admin-editable lookup and confirm it appears in the dependent picker; attempt to change a system-fixed value (e.g. the LITE/TC model set) and confirm the system prevents it with an explanation.
+
+**Acceptance Scenarios**:
+
+1. **Given** an admin-editable lookup, **When** an admin adds a new allowed value, **Then** the value becomes selectable wherever that lookup is used, with no deployment required.
+2. **Given** a system-fixed lookup (e.g. delivery model {LITE, TC}), **When** an admin attempts to add, rename, or remove a value, **Then** the action is prevented and the reason is shown.
+3. **Given** a lookup value currently in use by records, **When** an admin renames it, **Then** referencing records reflect the new label without losing their link (the underlying identifier is stable).
+
+---
+
+### User Story 9 - Referential safety for reference data (Priority: P3)
+
+The reference-data surface cannot be used to break integrity. A dimension row still referenced by operational records (a district with schools, a donor with projects, a role held by staff) cannot be hard-deleted; the admin is steered to **deactivate** instead, preserving history while removing the row from new-record pickers. Bilingual completeness is encouraged — saving a dimension with only one script present surfaces a warning.
+
+**Why this priority**: This protects the integrity guarantees migration establishes (US5 / FR-020) from being undone through the admin UI. Important for trustworthiness, but it layers on top of the CRUD surface.
+
+**Independent Test**: Attempt to delete a district that has schools attached and confirm it is blocked with a clear reason and a deactivate option; deactivate it and confirm existing schools keep their link while the district disappears from new-record pickers.
+
+**Acceptance Scenarios**:
+
+1. **Given** a dimension row referenced by at least one operational record, **When** an admin attempts to delete it, **Then** deletion is prevented with a message naming what still references it, and deactivation is offered.
+2. **Given** a deactivated dimension row, **When** admins create new records, **Then** the row is not offered as a choice, but records that already reference it remain valid and display it.
+3. **Given** an admin saving a bilingual dimension with only one script filled, **When** they save, **Then** the record saves but a missing-translation warning is recorded/surfaced (consistent with migration's bilingual flagging, FR-019).
+
+---
+
 ### Edge Cases
 
 - **Reporting-manager points to a non-employee** — some manager references (e.g. *Karthick Subramaniam*) are not present as employee rows. The self-referencing manager FK is left null and the dangling reference is reported (org-hierarchy resolution is deferred per ADR-0005).
@@ -116,6 +191,13 @@ Once the system is live, the same defects must not creep back in. The system enf
 - **Geo present as a map link but no coordinates** — coordinates are backfilled where a map link exists; the remaining ~95% without coordinates are flagged for later field collection (ties to M07), not blocked.
 - **Re-running the migration** — a second run must not create duplicate IDs or double-load child records; the load is repeatable to a consistent end state.
 - **Zero-real-data tab anomalies** — a tab whose only rows are placeholders/blank yields no loaded records and a note in the report, not an error.
+
+*Reference-data management (M02):*
+
+- **Duplicate code or name on create** — creating a district with an existing `code`, or a donor with a name that already exists, is flagged for confirmation (possible duplicate) rather than silently accepted.
+- **Reactivating a deactivated dimension** — a previously deactivated row can be reactivated and returns to pickers, retaining its original ID and history.
+- **Editing across the fixed/editable boundary** — attempting to edit a system-fixed enumeration is blocked; the boundary between fixed and editable lists is explicit, not decided per-edit.
+- **Concurrent edits to the same reference row** — last-write-wins per the constitution unless a conflict policy says otherwise; reference data is low-churn, so this is rare.
 
 ## Requirements *(mandatory)*
 
@@ -162,6 +244,21 @@ Once the system is live, the same defects must not creep back in. The system enf
 - **FR-022**: The system MUST enforce E.164 phone validity on an ongoing basis, normalizing or rejecting non-conformant input rather than persisting it.
 - **FR-023**: The migration and validation process MUST NOT introduce any student-level personal data; student figures are counts only (constitution, Principle IV).
 
+**Organization & reference-data management (M02)**
+
+- **FR-024**: Admins MUST be able to create, view, edit, and deactivate **districts** (`name_en`, `name_ta`, `code`).
+- **FR-025**: Admins MUST be able to create, view, edit, and deactivate **school types** (`code`, `name_en`, `name_ta`, `mgmt_category` constrained to the allowed set, `grade_level`).
+- **FR-026**: Admins MUST be able to create, view, edit, and deactivate **departments** and **roles** (role carrying its `scope`).
+- **FR-027**: Admins MUST be able to create, view, edit, and deactivate **donors** (`name`, `donor_type` ∈ {CSR, Non-CSR}, `poc_name`, `email`, `phone`, `postal_address`), including backfilling contact fields the migration left blank.
+- **FR-028**: The system MUST treat Tamil and English names as first-class for every bilingual dimension — both editable, both stored, neither auto-translated (constitution, Principle V).
+- **FR-029**: The system MUST manage the `Key`-derived controlled lookups (donor type, delivery model, management categories, etc.), distinguishing **system-fixed** lists from **admin-editable** lists, and MUST prevent edits to fixed lists.
+- **FR-030**: Changes to an admin-editable lookup MUST propagate to all dependent pickers and validations without a code change or redeploy.
+- **FR-031**: Renaming a lookup or dimension value MUST preserve referencing records' links via the stable identifier — no relink required and no orphaning.
+- **FR-032**: The system MUST prevent hard-deletion of any reference row still referenced by an operational record and MUST offer deactivation instead; deactivated rows MUST be excluded from new-record pickers while remaining valid for existing references.
+- **FR-033**: Reference-data create/edit/deactivate actions MUST be restricted to admin/operations roles (constitution, Principle VI).
+- **FR-034**: Reference-data edits MUST be captured in an audit trail (who changed what, when), since these tables are shared across modules (audit mechanism owned by M11).
+- **FR-035**: Reference records created after migration MUST receive system-minted stable IDs consistent with the migration's ID scheme, so post-migration records are indistinguishable in form from migrated ones.
+
 ### Key Entities *(include if feature involves data)*
 
 The migration touches **all** entities in `docs/data-model.md`. The ones most affected by transformation rules:
@@ -173,6 +270,10 @@ The migration touches **all** entities in `docs/data-model.md`. The ones most af
 - **coordinator (TC)** — 262 records; minted IDs, single-source TC↔school linkage, hiring batch retained.
 - **contractor** — 15 records; minted IDs, department FK.
 - **Exception report** *(migration artifact)* — the authoritative list of unresolved orphans, missing fields, ambiguous duplicates, and dangling references for the team to clean.
+
+Under **M02**, the dimension entities above (`district`, `school_type`, `donor`, `department`, `role`) are not only loaded but **maintained** — created, edited, deactivated/reactivated, with bilingual names and referential safety. Additionally:
+
+- **Controlled lookups / `Key` enumerations** *(M02-managed)* — governed value lists (donor type, delivery model {LITE, TC}, management categories) classified as **system-fixed** or **admin-editable**; referenced by dimension and operational records, edited through stable identifiers so labels can change without breaking links.
 
 ## Success Criteria *(mandatory)*
 
@@ -187,6 +288,12 @@ The migration touches **all** entities in `docs/data-model.md`. The ones most af
 - **SC-007**: A non-engineer on the BumbleB team can read the exception report and resolve a flagged item in the source without engineering help.
 - **SC-008**: After cutover, attempts to create an orphan, omit a required field, or store a malformed phone are rejected or flagged — none persist in the system of record.
 - **SC-009**: The migration can be re-run end-to-end and converge to the same result (no duplicate IDs, no double-loaded children).
+- **SC-010**: An admin can create, edit, or deactivate any reference dimension (district, school type, department, role, donor) entirely through the application — zero spreadsheet edits, no engineering involvement.
+- **SC-011**: 100% of bilingual dimensions can store and display both a Tamil and an English name.
+- **SC-012**: Attempts to delete a referenced reference row are prevented 100% of the time, with deactivation offered — no orphan is ever created through the reference-data surface.
+- **SC-013**: A new value added to an admin-editable lookup is selectable in dependent pickers immediately, with no deployment.
+- **SC-014**: Every donor record can hold complete contact details (POC, email, phone, address), enabling the team to drive migration-flagged blank donor contacts toward full coverage.
+- **SC-015**: 100% of reference-data edits are attributable to a user via the audit trail.
 
 ## Assumptions
 
@@ -198,6 +305,9 @@ The migration touches **all** entities in `docs/data-model.md`. The ones most af
 - **Geo**: Only ~5% of schools have coordinates and ~43% have map links; full geo coverage is a later field-collection effort (M07), not a Phase 0 exit condition.
 - **Privacy**: No student PII is migrated; student data is counts only (constitution, Principle IV).
 - **Validation surface**: Ongoing validation rules (FR-020–022) are defined here as requirements; whether they are enforced at the database, application, or both layers is an implementation choice for `/speckit-plan`.
+- **M02 surface**: Reference-data management is an admin/operations capability (not field-facing); its UI/UX is designed in `/speckit-plan`. "Deactivate" is the soft-delete mechanism; hard delete is reserved for unreferenced rows only.
+- **Fixed vs editable lookups (default)**: Lists whose values drive behaviour — `donor_type` {CSR, Non-CSR}, delivery `model` {LITE, TC}, and the `mgmt_category` set — are treated as **system-fixed** by default; descriptive/extensible lists are admin-editable. The exact split is to be confirmed (see Open Questions).
+- **Audit**: The audit-trail mechanism is a cross-cutting M11 concern consumed here, not re-specified; this spec only requires that reference-data edits are audited.
 
 ## Open Questions
 
@@ -209,3 +319,11 @@ These need team answers before or during `/speckit-clarify`. The three most deci
 4. **Post-load clean-up ownership & timeline** — Who on the BumbleB team owns resolving the exception report, and on what timeline? (M10 open question.) *Process question — to confirm in clarify, not blocking the spec.*
 5. **Donor contact backfill ownership** — Who is responsible for backfilling the mostly-blank donor point-of-contact / email / phone, and through what channel (the M01 flow, or a manual admin pass)? (M02 open question, surfaces here because donors load during migration.)
 6. **Idempotency expectation** — Is re-running the full migration the agreed clean-up loop (fix source → re-run), or should corrections be applied as in-place edits after the first load? Affects FR-006 / SC-009 framing.
+
+**Organization & Reference Data (M02):**
+
+7. **Which enumerations are admin-editable vs system-fixed?** The default above treats behaviour-bearing lists (donor type, LITE/TC model, mgmt_category) as fixed and the rest as editable. Confirm the exact boundary — getting this wrong either ossifies lists the team needs to extend, or lets someone edit a value the application logic depends on. (M02 open question.) Impacts FR-029, US8.
+8. **Deactivate vs delete semantics** — is soft-deactivation always the rule (never hard-delete, even for unreferenced rows), or is hard-delete allowed only when nothing references a row? (M02.) Impacts FR-032, US9.
+9. **Reference-data edit roles** — is "admin/operations" the right edit scope for all reference data, or do some lists (e.g. roles, donors) warrant a narrower role? (M02, ties to M01 role model.) Impacts FR-033.
+
+*Note: items 7–9 have documented defaults in Assumptions, so they are confirm-only and do not block the spec. The donor-contact backfill ownership question (item 5) is shared M10/M02 and already surfaced above.*
