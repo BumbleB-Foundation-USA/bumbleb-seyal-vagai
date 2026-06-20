@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Data Migration & Quality (Phase 0)
+# Specification Quality Checklist: Phase 0 — Data Foundation (Migration & Reference Data)
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-06-19
@@ -31,6 +31,8 @@
 
 ## Notes
 
-- **Intentionally open**: 3 `[NEEDS CLARIFICATION]` markers remain in the Open Questions section (TBD status rule, duplicate source-of-truth, cutover gate). These are genuine team decisions with no safe default and are the explicit purpose of the next step (`/speckit-clarify`). All other items pass.
+- **Scope**: This feature folds **M10 — Data Migration & Quality** (US1–US5) and **M02 — Organization & Reference Data** (US6–US9) into one Phase 0 "data foundation" spec, at the user's direction. M10 *loads* the dimension tables; M02 *maintains* them.
+- **Intentionally open**: 3 `[NEEDS CLARIFICATION]` markers remain in the Open Questions section (TBD status rule, duplicate source-of-truth, cutover gate) — genuine team decisions with no safe default, and the explicit purpose of the next step (`/speckit-clarify`). All other items pass.
+- **M02 open questions (7–9)** — editable-vs-fixed enumerations, deactivate-vs-delete semantics, edit-role scope — are documented with **defaults in Assumptions**, so they are confirm-only and are *not* embedded as additional `[NEEDS CLARIFICATION]` markers (keeping the total at 3, per the spec workflow's marker limit).
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.
-- "System of record database" is referred to abstractly; the D1/Cloudflare binding is deferred to `/speckit-plan` per `docs/architecture.md`.
+- "System of record database" / reference-data "surface" are referred to abstractly; the D1/Cloudflare/UI bindings are deferred to `/speckit-plan` per `docs/architecture.md`.
